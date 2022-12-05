@@ -1,0 +1,64 @@
+---
+apiVersion: external-secrets.io/v1beta1
+kind: SecretStore
+metadata:
+ name: dev-secret-store
+ namespace: dev
+spec:
+ provider:
+     gcpsm:  
+       projectID: <PROJECT_ID>   
+       auth:
+         workloadIdentity:
+           clusterLocation: us-central1-b
+           clusterName: dev-private-cluster-01
+           serviceAccountRef:
+             name:  workload-identity-ksa
+
+---
+ 
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+ name: externalsecret
+ namespace: dev
+spec:
+ refreshInterval: 1m           
+ secretStoreRef:
+   kind: SecretStore
+   name: dev-secret-store              
+ target:
+   name:  workload-secret  
+   creationPolicy: Owner
+ data:
+ - secretKey: k8s-secret-key-testsecret  
+   remoteRef:
+     key: gcp-secret-key-testsecret
+ 
+---
+ 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+ name: myapp
+ namespace: dev
+spec:
+ selector:
+   matchLabels:
+     app: myapp
+ template:
+   metadata:
+     labels:
+       app: myapp
+   spec:
+     containers:
+     - name: myapp
+       image: nginx
+       ports:
+       - containerPort: 80
+       env:
+       - name: WORKLOAD_SA
+         valueFrom:
+           secretKeyRef:
+             name: workload-secret
+             key: k8s-secret-key-testsecret

@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+ name: myapp
+ namespace: dev
+ annotations:
+   secret.reloader.stakater.com/reload: "workload-secret"
+spec:
+ selector:
+   matchLabels:
+     app: myapp
+ template:
+   metadata:
+     labels:
+       app: myapp
+   spec:
+     containers:
+     - name: myapp
+       image: nginx
+       ports:
+       - containerPort: 80
+       env:
+       - name: WORKLOAD_SA
+         valueFrom:
+           secretKeyRef:
+             name: workload-secret
+             key: k8s-secret-key-testsecret
+
+---
+ 
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+ name: externalsecret
+ namespace: dev
+spec:
+ refreshInterval: 1m           
+ secretStoreRef:
+   kind: SecretStore
+   name: dev-secret-store            
+ target:
+   name:  workload-secret
+   template:
+     metadata:
+       annotations:
+         reloader.stakater.com/match: "true"
+   creationPolicy: Owner
+ data:
+ - secretKey: k8s-secret-key-testsecret 
+   remoteRef:
+     key: gcp-secret-key-testsecret
+     version: latest
